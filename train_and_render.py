@@ -1,6 +1,10 @@
 
+import json
 import os
+import random
+from project_paths import project_path
 import wandb
+from evaluation_export import save_evaluation
 
 from gaussian_splatting.train import *
 
@@ -29,9 +33,25 @@ pre_parser.add_argument("-gauss_iters", type=int, help="number of training itera
 pre_parser.add_argument("-wandb", type=int, help="whether we track with wandb", default=0)
 pre_parser.add_argument("-train", type=int, help="whether we train or look for a saved model", default=1)                   
 pre_parser.add_argument("-v", type=int, help="verbosity", default=0)                        
-pre_parser.add_argument("-data_path", type=str, help="path pointing towards the usable data set", default="MAD-Sim_3dgs/")                        
+pre_parser.add_argument("-save_results", type=int, choices=[0, 1], default=1,
+                        help="save scores, metrics, reference images and anomaly maps")
+pre_parser.add_argument("-data_path", type=str, help="path pointing towards the usable data set", default=project_path("MAD-Sim_3dgs"))
+# Argomenti aggiunti per gli studi di ablazione. Con i valori predefiniti lo
+# script si comporta come prima.
+pre_parser.add_argument("-load_iter", type=int, default=None,
+                        help="3DGS iteration whose saved model is used for pose estimation (default: gauss_iters)")
+pre_parser.add_argument("-save_iters", type=int, nargs="*", default=[],
+                        help="additional 3DGS iterations at which the model is saved during training")
+pre_parser.add_argument("-pose_cache", type=int, choices=[0, 1], default=0,
+                        help="save per-image pose estimation results in the model directory and reuse them when present")
+pre_parser.add_argument("-k_extra", type=int, nargs="*", default=[],
+                        help="additional numbers of pose steps saved in the same run (needs -pose_cache 1)")
 
 lego_args = pre_parser.parse_args()
+if lego_args.k_extra and lego_args.pose_cache == 0:
+    # Senza salvataggio su disco i risultati agli altri valori di k verrebbero
+    # calcolati e poi buttati via: meglio fermarsi subito.
+    pre_parser.error("-k_extra needs -pose_cache 1")
 
 data_base_dir = lego_args.data_path
 
@@ -44,8 +64,30 @@ config = {
     "wandb" : lego_args.wandb,
     "train" : lego_args.train,
     "data_dir" : data_base_dir,
-    "verbose" : lego_args.v != 0
+    "verbose" : lego_args.v != 0,
+    "save_results" : lego_args.save_results != 0,
+    # Il codice ufficiale caricava sempre il modello dell'iterazione 30000,
+    # anche con -gauss_iters diverso. Ora si carica quello dell'ultima
+    # iterazione del training, oppure quello chiesto con -load_iter.
+    "load_iter" : lego_args.gauss_iters if lego_args.load_iter is None else lego_args.load_iter,
+    "save_iters" : lego_args.save_iters,
+    "pose_cache" : lego_args.pose_cache != 0,
+    "k_extra" : lego_args.k_extra
 }
+
+# Esperimenti con meno viste di training. La cartella dei dati di una classe
+# può contenere train_views.json, con gli indici delle viste che ne fanno parte
+# (lo scrive prepare_view_subsets.py insieme ai dati). Le stesse viste vanno
+# usate per la posa iniziale: una vista che lo splat non ha mai visto non deve
+# essere disponibile nemmeno lì. Leggere l'elenco dalla cartella dei dati,
+# invece che da un argomento a parte, impedisce che i due vadano fuori sincrono.
+# Se il file non c'è (cartella standard) si usano tutte le viste.
+views_file = os.path.join(data_base_dir, config["classname"], "train_views.json")
+train_views = None
+if os.path.isfile(views_file):
+    with open(views_file) as f:
+        train_views = json.load(f)["indices"]
+config["n_train_views"] = None if train_views is None else len(train_views)
 
 projectname = config["prefix"]
 if config["wandb"] != 0:
@@ -63,6 +105,15 @@ if config["train"] != 0:
     
     # Set up command line argument parser
     training_args = ["-w", "--eval", "-s", data_path, "-m", result_dir, "--iterations", str(config["3dgs_iters"]), "--sh_degree", "0"]
+    if config["save_iters"]:
+        # Salvataggi intermedi dello splat. Il programma del training (learning
+        # rate, densificazione) non dipende dal numero totale di iterazioni, e
+        # a ogni iterazione il salvataggio avviene prima dell'aggiornamento:
+        # il modello salvato all'iterazione N di un training lungo è quello che
+        # si otterrebbe fermando lo stesso training a N. Un solo training da
+        # 30000 iterazioni dà così anche i modelli a 3000, 7000 e 15000.
+        # L'iterazione finale viene sempre aggiunta più sotto.
+        training_args += ["--save_iterations"] + [str(n) for n in config["save_iters"]]
     print("training args: ", training_args)
     parser = ArgumentParser(description="3DGS Training script parameters")
     lp = ModelParams(parser)
@@ -102,16 +153,37 @@ else:
             "train_seconds" : 0
         })
     print("skipping training!")
-    
+    # Con il training i generatori casuali vengono inizializzati da safe_state.
+    # Senza training non lo faceva nessuno, ma il raffinamento della posa parte
+    # da parametri casuali (camera_transf): due esecuzioni con lo stesso -seed
+    # potevano quindi partire da valori diversi. Qui si fissano gli stessi tre
+    # generatori di safe_state, senza toccare il resto (safe_state sostituisce
+    # anche sys.stdout, cosa che qui non serve).
+    random.seed(config["seed"])
+    np.random.seed(config["seed"])
+    torch.manual_seed(config["seed"])
+
 from pose_estimation import main_pose_estimation
 from utils_pose_est import ModelHelper, update_config
 from aupro import calculate_au_pro_au_roc
 
 
-test_images, reference_images, all_labels, gt_masks, times = main_pose_estimation(cur_class=config["classname"],
+# Con -pose_cache 1 i risultati della posa (un file per immagine di test) stanno
+# nella cartella del modello, separati per iterazione del modello 3DGS usato:
+# lo stesso modello a iterazioni diverse dà pose diverse.
+pose_dir = None
+if config["pose_cache"]:
+    pose_dir = os.path.join(result_dir, "pose_estimation", f"iteration_{config['load_iter']}")
+
+test_images, reference_images, all_labels, gt_masks, times, image_paths = main_pose_estimation(cur_class=config["classname"],
                                                                                   model_dir_location=result_dir,
                                                                                   k=config["k"], verbose=config["verbose"],
-                                                                                  data_dir=None)
+                                                                                  data_dir=None,
+                                                                                  return_image_paths=True,
+                                                                                  iteration=config["load_iter"],
+                                                                                  train_views=train_views,
+                                                                                  save_dir=pose_dir,
+                                                                                  extra_steps=config["k_extra"])
 
 if config["wandb"] != 0:
     my_data = [[i, times[i]] for i in range(len(times))]
@@ -120,7 +192,7 @@ if config["wandb"] != 0:
     wandb.log({"time_millis": cur_table})
 
 
-with open("PAD_utils/config_effnet.yaml") as f:
+with open(project_path("PAD_utils", "config_effnet.yaml")) as f:
     mad_config = EasyDict(yaml.load(f, Loader=yaml.FullLoader))
 mad_config = update_config(mad_config)
 model = ModelHelper(mad_config.net)
@@ -188,6 +260,21 @@ img_scores = scores.reshape(scores.shape[0], -1).max(axis=1)
 gt_list_isano = np.asarray(all_labels) != 0
 img_roc_auc = roc_auc_score(gt_list_isano, img_scores)
 print('image ROCAUC: %.3f' % (img_roc_auc))
+
+if config["save_results"]:
+    export_dir = save_evaluation(
+        result_dir, config=config, image_paths=image_paths,
+        test_images=test_images, reference_images=reference_images,
+        labels=all_labels, masks=gt_mask, scores=scores, pose_times_ms=times,
+        metrics={
+            "image_auroc": img_roc_auc,
+            "pixel_auroc": per_pixel_rocauc,
+            "aupro": au_pro,
+            "image_auroc_from_masks": au_roc,
+        },
+        normalization={"raw_min": min_anomaly_score, "raw_max": max_anomaly_score},
+    )
+    print("Evaluation files saved to:", export_dir)
 
 if config["wandb"] != 0:
     wandb.log({
