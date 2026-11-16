@@ -1,0 +1,40 @@
+# Ambiente con cui sono stati prodotti i risultati di questo progetto.
+#
+# requirements.txt è il file ufficiale di SplatPose, lasciato com'è: va usato
+# insieme a environment.yml (conda, Python 3.7, PyTorch 1.12.1). Questo file
+# descrive invece per intero l'ambiente usato qui: Python 3.10 in una .venv,
+# senza conda. Sono le versioni registrate in ogni summary.json dei risultati.
+#
+#     pip install -r requirements_2.txt
+#
+# Le due estensioni CUDA in submodules/ si compilano dopo, a parte.
+# Le differenze dal file ufficiale sono segnate riga per riga.
+
+# --- PyTorch. Nel file ufficiale non c'è: lo installava conda (versione 1.12.1).
+#     La versione per CUDA 11.8 non sta su PyPI ma nell'indice di PyTorch.
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.0.1+cu118
+torchvision==0.15.2+cu118
+
+# Le stesse righe del file ufficiale.
+matplotlib==3.5.3
+Pillow==9.5.0
+scikit_learn==1.0.2
+
+scipy==1.9.3
+opencv-python==4.9.0.80
+wandb==0.16.2
+easydict==1.11
+einops==0.6.1
+kornia==0.6.12
+yacs==0.1.8
+gdown==4.7.3
+
+# numpy: nel file ufficiale non è fissato. Con numpy 1.22 la conversione fra
+# array NumPy e tensori di questa versione di PyTorch dava un errore.
+numpy==1.23.5
+# plyfile: il codice 3DGS lo importa per leggere e scrivere gli splat. Nel
+# progetto ufficiale lo installava conda, e nessun altro pacchetto lo porta con sé.
+plyfile==0.8.1
+# ninja: non serve per eseguire il codice ma per compilare le due estensioni
+ninja==1.13.2
