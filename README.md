@@ -1,100 +1,88 @@
-# SplatPose & Detect: Pose-Agnostic 3D Anomaly Detection 
+# Pose-Agnostic Anomaly Detection with Gaussian Splatting
 
-This is the official code to the paper 
-[**"SplatPose & Detect: Pose-Agnostic 3D Anomaly Detection"**](https://arxiv.org/pdf/2404.06832.pdf) 
-by Mathis Kruse, Marco Rudolph, Dominik Woiwode, and Bodo Rosenhahn
-which was accepted to the CVPR 2024 Workshop VAND 2.0.
+A project built on top of
+[SplatPose](https://github.com/m-kruse98/SplatPose), the method introduced in
+["SplatPose & Detect: Pose-Agnostic 3D Anomaly Detection"](https://arxiv.org/abs/2404.06832)
+(Kruse et al., CVPR 2024 Workshops).
 
- 	
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/splatpose-detect-pose-agnostic-3d-anomaly/anomaly-detection-on-pad-dataset)](https://paperswithcode.com/sota/anomaly-detection-on-pad-dataset?p=splatpose-detect-pose-agnostic-3d-anomaly)
+This repository is **not** the official SplatPose code. It starts from the
+official repository at commit `2c07b6d` and adds what was needed to run it,
+measure it and study it. The method and the original code belong to its
+authors: their README is kept unchanged in
+[README_SplatPose.md](README_SplatPose.md).
 
-![teaser figure](./assets/teaser_figure.png)
+> **Work in progress.** Step-by-step instructions to set up the environment and
+> reproduce every number from scratch will be added once they have been tested
+> on a clean copy of the repository.
 
+## Project status
 
-## Abstract:
->Detecting anomalies in images has become a well-explored problem in both academia and industry. State-of-the-art algorithms are able to detect defects in increasingly difficult settings and data modalities. However, most current methods are not suited to address 3D objects captured from differing poses. While solutions using Neural Radiance Fields (NeRFs) have been proposed, they suffer from excessive computation requirements, which hinder real-world usability. For this reason, we propose the novel 3D Gaussian splatting-based framework SplatPose which, given multi-view images of a 3D object, accurately estimates the pose of unseen views in a differentiable manner, and detects anomalies in them. We achieve state-of-the-art results in both training and inference speed, and detection performance, even when using less training data than competing methods. We thoroughly evaluate our framework using the recently proposed Pose-agnostic Anomaly Detection benchmark and its multi-pose anomaly detection (MAD) data set.
+| Part | Content | Status |
+| --- | --- | --- |
+| 1 | Reproducing SplatPose on MAD-Sim and studying its main design choices | Done |
+| 2 | Editing the trained splat to create synthetic defects | Not started |
+| 3 | Training a small detector on the synthetic defects | Not started |
 
+## Results so far
 
+Reproduction with the default settings (210 training views, 30,000 Gaussian
+Splatting iterations, 175 pose refinement steps) on four MAD-Sim objects. Our
+values are the mean over five runs with seeds 0–4; the standard deviation over
+the five runs is shown for the image-level AUROC.
 
+| Object | Image AUROC, paper | Image AUROC, ours | Pixel AUROC, paper | Pixel AUROC, ours |
+| --- | ---: | ---: | ---: | ---: |
+| Unicorn | 97.9 | 98.3 ± 0.4 | 99.6 | 99.6 |
+| Mallard | 97.4 | 97.6 ± 0.5 | 99.7 | 99.7 |
+| Owl | 86.8 | 87.6 ± 0.9 | 99.2 | 99.3 |
+| Cat | 82.4 | 81.4 ± 1.1 | 99.3 | 99.1 |
+| Mean | 91.1 | 91.2 | 99.5 | 99.4 |
 
-<section class="section" id="BibTeX">
-  <div class="container is-max-desktop content">
-    <h2 class="title">BibTeX</h2>
-    <pre><code>@InProceedings{Kruse_2024_CVPR,
-    author    = {Kruse, Mathis and Rudolph, Marco and Woiwode, Dominik and Rosenhahn, Bodo},
-    title     = {SplatPose \& Detect: Pose-Agnostic 3D Anomaly Detection},
-    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) Workshops},
-    month     = {June},
-    year      = {2024},
-    pages     = {3950-3960}
-}</code></pre>
-  </div>
-</section>
+The ablation study changes one setting at a time on the same four objects,
+with a single seed: number of training views (42 to 210), Gaussian Splatting
+iterations (3,000 to 30,000) and pose refinement steps (1 to 300).
 
+The numbers of every run are in [`results/`](results):
 
+- `baseline_results.csv`: the 20 reproduction runs behind the table above;
+- `ablation_results_seed0.csv`: the 52 evaluations of the ablation study;
+- `ablation_diagnostics_seed0.csv`: pose alignment and reconstruction quality
+  for each ablation setting.
 
+## What was added to the official code
 
+| File | Purpose |
+| --- | --- |
+| `run_baseline.py` | Runs the default configuration over several objects and seeds and collects the metrics |
+| `run_ablation.py` | Runs the ablation grid and collects the metrics |
+| `analyze_ablation.py` | Measures pose alignment and reconstruction quality on the ablation runs |
+| `prepare_view_subsets.py` | Builds the data folders with fewer training views |
+| `coarse_pose.py` | Computes the LoFTR matches used for the initial pose once per object and stores them |
+| `evaluation_export.py` | Saves scores, metrics, reference renderings and anomaly maps of each evaluation |
+| `project_paths.py` | Resolves default paths from the repository root |
+| `requirements_2.txt` | Package versions of the environment used for all the results |
 
-## Installation Setup
-To reproduce our results, please clone this repository and the respective submodules. We recommend creating a new conda environment and installing all necessary modules. This code has been written and only tested on a Linux machine.
-```shell
-# (1) Cloning the repository and the submodules recursively
-git clone git@github.com:m-kruse98/SplatPose.git --recursive
-cd SplatPose
+`train_and_render.py` and `pose_estimation.py` were extended with the options
+these scripts rely on; with their default arguments they run the same
+computation as the official code. The comments in the added code are written in
+Italian.
 
-# (2) Create the environment with necessary CUDA & PyTorch frameworks
-conda env create --file environment.yml 
-conda activate splatpose
+## Environment
 
-# (3) Install remaining requirements with pip
-pip install -r requirements.txt
-```
+All results were produced on Windows 11 with an NVIDIA RTX 4070 SUPER (12 GB),
+Python 3.10, PyTorch 2.0.1 and CUDA 11.8. The exact package versions are listed
+in [`requirements_2.txt`](requirements_2.txt). The official `requirements.txt`
+and `environment.yml` are kept as they were and describe the authors' original
+environment, not this one.
 
-You will also need the necessary retrieval models from the OmniposeAD codebase, which is also found [here](https://drive.google.com/file/d/16FOwaqQE0NGY-1EpfoNlU0cGlHjATV0V/view?usp=drive_link), and put them into the "PAD_utils" directory. Alternatively just run the code below to directly download the necessary checkpoints.
-```shell
-# (4) Make sure steps (1)-(3) are completed. Download the model checkpoints from the PAD repository
-cd PAD_utils
-gdown https://drive.google.com/uc\?id\=16FOwaqQE0NGY-1EpfoNlU0cGlHjATV0V
-unzip model.zip
-```
+## Credits and license
 
-## Running the code
+- SplatPose: [official repository](https://github.com/m-kruse98/SplatPose) and
+  [paper](https://arxiv.org/abs/2404.06832). Citation, credits and
+  acknowledgments of the authors are in [README_SplatPose.md](README_SplatPose.md).
+- MAD-Sim data set: [PAD repository](https://github.com/EricLee0224/PAD).
+- 3D Gaussian Splatting: [official repository](https://github.com/graphdeco-inria/gaussian-splatting).
 
-To run the code, we need to download the **MAD-Sim** data set from [the official repository](https://github.com/EricLee0224/PAD). The data set is ideally placed directly into the repository.
-
-### Preparation
-**Configure** the provided script ```prepare_lego_ad.py``` to **the correct paths** and run it to generate a usable data set.
-```shell
-python prepare_lego_ad.py
-```
-
-With standard parameters, this will create a new directory called "MAD-Sim_3dgs", which can be fed into the Gaussian Splatting Framework.
-
-
-### Running Anomaly Detection
-
-Validate that the dataset path in ```train_and_render.py``` is pointing towards the previously created directory. To start a run of SplatPose on the first class "01Gorilla" of MAD, simply run
-
-```shell
-python train_and_render.py -c 01Gorilla
-```
-Different options can be found using ```python train_and_render.py --help```, and used to tweak the hyperparameters.
-
-
-### Running Pose Estimation
-Analogously, the experiments for the pose estimation can also be repeated. First construct a suitably formatted pose estimation data set using ```prepare_subset_lego_ad.py```.
-
-The pose estimation is validated using the corresponding script ```train_and_pose_est.py```, for which several options are again available. Other suitably formatted data sets, such as the NeRF synthetic scenes (available [here](https://github.com/bmild/nerf)), can also be used for this script.
-
-
-### Credits
-
-The Gaussian Splatting code is based on the [official repository](https://github.com/graphdeco-inria/gaussian-splatting). The MAD-Sim data set, as well as select parts of their codebase, have been taken from their [GitHub repository](https://github.com/EricLee0224/PAD) as well.
-
-### License
-
-The gaussian-splatting module is licensed under the respective "Gaussian-Splatting License" found in LICENSE.md.
-
-#### Acknowledgments
-
-This work was supported by the Federal Ministry of Education and Research (BMBF), Germany under the AI service center KISSKI (grant no. 01IS22093C), the Lower Saxony Ministry of Science and Culture (MWK) through the zukunft.niedersachsen program of the Volkswagen Foundation and the Deutsche Forschungsgemeinschaft (DFG) under Germany’s Excellence Strategy within the Cluster of Excellence PhoenixD (EXC 2122).
+This repository is distributed under the same Gaussian-Splatting License as the
+official code, for non-commercial research use only: see
+[LICENSE.md](LICENSE.md).
