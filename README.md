@@ -11,9 +11,9 @@ measure it and study it. The method and the original code belong to its
 authors: their README is kept unchanged in
 [README_SplatPose.md](README_SplatPose.md).
 
-> **Work in progress.** Step-by-step instructions to set up the environment and
-> reproduce every number from scratch will be added once they have been tested
-> on a clean copy of the repository.
+> **Work in progress.** The commands that produce the results are listed below.
+> Step-by-step instructions to install the environment from scratch will be
+> added once they have been tested on a clean copy of the repository.
 
 ## Project status
 
@@ -25,10 +25,34 @@ authors: their README is kept unchanged in
 
 ## Results so far
 
-Reproduction with the default settings (210 training views, 30,000 Gaussian
-Splatting iterations, 175 pose refinement steps) on four MAD-Sim objects. Our
-values are the mean over five runs with seeds 0–4; the standard deviation over
-the five runs is shown for the image-level AUROC.
+The commands below are run from the repository root. They assume that the
+Python environment is ready (see [Environment](#environment)), that the MAD-Sim
+data set is in `MAD-Sim/` and that the pretrained checkpoints are in
+`PAD_utils/model/`. Data set and checkpoints are downloaded as explained in
+[README_SplatPose.md](README_SplatPose.md).
+
+### Reproduction
+
+```shell
+python prepare_lego_ad.py
+python run_baseline.py -c 02Unicorn 03Mallard 07Owl 16Cat
+```
+
+`prepare_lego_ad.py` converts MAD-Sim into the format read by the Gaussian
+Splatting training and is needed only once. `run_baseline.py` trains and
+evaluates each object with the default settings (210 training views, 30,000
+Gaussian Splatting iterations, 175 pose refinement steps) and seeds 0–4, writes
+`results/baseline_results.csv` and prints mean and standard deviation per
+object. Runs that are already complete are skipped, so the command can be
+interrupted and restarted.
+
+One run of Unicorn takes about 15 minutes on the GPU listed below; objects with
+more test images take longer. In addition, the LoFTR matches used for the
+initial pose are computed once per object, at about 6 seconds per test image
+(roughly half an hour per object).
+
+In the table, our values are the mean over the five runs; the standard
+deviation over the five runs is shown for the image-level AUROC.
 
 | Object | Image AUROC, paper | Image AUROC, ours | Pixel AUROC, paper | Pixel AUROC, ours |
 | --- | ---: | ---: | ---: | ---: |
@@ -38,16 +62,37 @@ the five runs is shown for the image-level AUROC.
 | Cat | 82.4 | 81.4 ± 1.1 | 99.3 | 99.1 |
 | Mean | 91.1 | 91.2 | 99.5 | 99.4 |
 
-The ablation study changes one setting at a time on the same four objects,
-with a single seed: number of training views (42 to 210), Gaussian Splatting
-iterations (3,000 to 30,000) and pose refinement steps (1 to 300).
+These numbers cannot be reproduced digit by digit: training and pose refinement
+are not deterministic on the GPU, so even the same seed gives slightly
+different results on each execution. Across the five seeds the image-level
+AUROC varies, from the worst to the best run, by 0.9 points for Unicorn, 1.5
+for Mallard, 2.5 for Owl and 3.2 for Cat. A new execution should fall within a
+similar range.
 
-The numbers of every run are in [`results/`](results):
+### Ablation
 
-- `baseline_results.csv`: the 20 reproduction runs behind the table above;
-- `ablation_results_seed0.csv`: the 52 evaluations of the ablation study;
-- `ablation_diagnostics_seed0.csv`: pose alignment and reconstruction quality
-  for each ablation setting.
+```shell
+python run_ablation.py -c 02Unicorn 03Mallard 07Owl 16Cat
+python analyze_ablation.py -c 02Unicorn 03Mallard 07Owl 16Cat -render 1
+```
+
+`run_ablation.py` changes one setting at a time on the same four objects, with
+a single seed (0):
+
+- training views: 42, 84, 126, 168 (default 210);
+- Gaussian Splatting iterations: 3,000, 7,000, 15,000 (default 30,000);
+- pose refinement steps: 1, 25, 50, 100, 300 (default 175).
+
+It writes `results/ablation_results_seed0.csv`, one row for each of the 52
+evaluations, and took about 9 hours with the LoFTR matches already computed.
+Like the baseline, it can be interrupted and restarted.
+
+`analyze_ablation.py` reads the files saved by the grid and writes
+`results/ablation_diagnostics_seed0.csv`: for each setting, how many test
+images end up aligned with the reference pose and how well the splat
+reconstructs the training views (PSNR).
+
+All CSV files are in [`results/`](results).
 
 ## What was added to the official code
 
@@ -71,9 +116,12 @@ Italian.
 
 All results were produced on Windows 11 with an NVIDIA RTX 4070 SUPER (12 GB),
 Python 3.10, PyTorch 2.0.1 and CUDA 11.8. The exact package versions are listed
-in [`requirements_2.txt`](requirements_2.txt). The official `requirements.txt`
-and `environment.yml` are kept as they were and describe the authors' original
-environment, not this one.
+in [`requirements_2.txt`](requirements_2.txt). Besides these packages, the two
+CUDA extensions in `submodules/` have to be compiled and installed in the same
+environment; the tested installation steps will be added here.
+
+The official `requirements.txt` and `environment.yml` are kept as they were and
+describe the authors' original environment, not this one.
 
 ## Credits and license
 
