@@ -1,5 +1,6 @@
  
 import os
+from project_paths import link_or_copy, project_path
 import json
 import numpy as np
 import cv2
@@ -8,9 +9,9 @@ import cv2
 # number of extra generated test samples
 k_augments = 300
 # change this path to the directory you want to fill with the "new" data set
-result_base_path = "MAD-Sim_Subsets"
+result_base_path = project_path("MAD-Sim_Subsets")
 # path to the MAD-Sim data set
-mad_base_path = "MAD-Sim/"
+mad_base_path = project_path("MAD-Sim")
 classnames = ["01Gorilla", "02Unicorn", "03Mallard", "04Turtle", "05Whale", "06Bird", "07Owl", "08Sabertooth",
               "09Swan", "10Sheep", "11Pig", "12Zalika", "13Pheonix", "14Elephant", "15Parrot", "16Cat", "17Scorpion",
               "18Obesobeso", "19Bear", "20Puppy"]
@@ -97,18 +98,18 @@ for cl in classnames:
             print(f"Done with preparing pose data set at split {split_to_train} and {len(new_train_transforms['frames'])} & {len(test_transforms['frames'])}")
             
             ######
-            # Copy train split from constructed pose subset data set, while testset is just symlink to old testset
+            # Link the subset data, or copy it when Windows disallows symbolic links.
             # copy over training_data
             os.makedirs(os.path.join(ano_class_dir, "train"), exist_ok=True)
-            new_train_dir = os.symlink(new_train_dir, os.path.join(ano_class_dir, "train", "good"))
+            ano_train_dir = link_or_copy(new_train_dir, os.path.join(ano_class_dir, "train", "good"))
             
             # create test dir
             orig_test_dir = os.path.join(mad_base_path, cl, "test")
-            new_test_dir = os.symlink(orig_test_dir, os.path.join(ano_class_dir, "test"))
+            ano_test_dir = link_or_copy(orig_test_dir, os.path.join(ano_class_dir, "test"))
             
-            gt = os.symlink(os.path.join(mad_base_path, cl, "ground_truth"), os.path.join(ano_class_dir, "ground_truth"))
+            gt = link_or_copy(os.path.join(mad_base_path, cl, "ground_truth"), os.path.join(ano_class_dir, "ground_truth"))
             
-            transforms = os.symlink(os.path.join(os.path.join(pose_class_dir, "transforms_train.json")), os.path.join(ano_class_dir, "transforms.json"))
+            transforms = link_or_copy(os.path.join(pose_class_dir, "transforms_train.json"), os.path.join(ano_class_dir, "transforms.json"))
                         
-            print(new_train_dir, new_test_dir, gt, transforms)
+            print(ano_train_dir, ano_test_dir, gt, transforms)
 

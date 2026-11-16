@@ -1,5 +1,6 @@
 
 from gaussian_splatting.train import *
+from project_paths import project_path
 import torch
 import numpy as np
 import wandb
@@ -23,7 +24,7 @@ pre_parser.add_argument("-seed", type=int, help="seed for random behavior", defa
 pre_parser.add_argument("-gauss_iters", type=int, help="number of training iterations for 3DGS", default=30000)
 pre_parser.add_argument("-wandb", type=int, help="whether we track with wandb", default=0)
 pre_parser.add_argument("-train", type=int, help="whether we train or look for a saved model", default=1)
-pre_parser.add_argument("-data_path", type=str, help="path pointing towards the usable data set", default="MAD-Sim_Subsets/0.8_0/pose")                        
+pre_parser.add_argument("-data_path", type=str, help="path pointing towards the usable data set", default=project_path("MAD-Sim_Subsets", "0.8_0", "pose"))
 
 
 lego_args = pre_parser.parse_args()
@@ -79,7 +80,7 @@ else:
 from pose_estimation import evaluate_pose_estimation
 
 return_dict = evaluate_pose_estimation(cur_class=config["classname"], model_dir_location=result_dir,
-                                       k=int(config["k"]), verbose=True)
+                                       k=int(config["k"]), verbose=True, data_dir=data_base_dir)
 
 translation_errors = return_dict["translation_error"]
 rotation_errors = return_dict["rotation_error"]

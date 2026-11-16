@@ -8,6 +8,7 @@
 
 __version__ = "0.7.1"
 from .model import EfficientNet
+from project_paths import project_path
 
 __all__ = [
     "EfficientNet",
@@ -48,7 +49,7 @@ def efficientnet_b3(pretrained, outblocks, outstrides, pretrained_model=""):
     )
 
 
-def efficientnet_b4(pretrained, outblocks, outstrides, pretrained_model="retrieval/model/efficientnet-b4-6ed6700e.pth"):
+def efficientnet_b4(pretrained, outblocks, outstrides, pretrained_model=project_path("retrieval", "model", "efficientnet-b4-6ed6700e.pth")):
     return build_efficient(
         "efficientnet-b4", pretrained, outblocks, outstrides, pretrained_model
     )

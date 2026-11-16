@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 import json
 import os
+from project_paths import project_path
 from torchvision import transforms
 from torch.utils.data import Dataset
 from PIL import Image
@@ -412,7 +413,7 @@ def pose_retrieval_loftr(imgs,obs_img,poses):
     _default_cfg = deepcopy(default_cfg)
     _default_cfg['coarse']['temp_bug_fix'] = True  # set to False when using the old ckpt
     matcher = LoFTR(config=_default_cfg)
-    matcher.load_state_dict(torch.load("PAD_utils/model/indoor_ds_new.ckpt")['state_dict'])
+    matcher.load_state_dict(torch.load(project_path("PAD_utils", "model", "indoor_ds_new.ckpt"))['state_dict'])
     matcher = matcher.eval().cuda()
     if obs_img.shape[-1] == 3:
         query_img = cv2.cvtColor(obs_img, cv2.COLOR_RGB2GRAY)
