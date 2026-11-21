@@ -23,10 +23,9 @@ numero massimo di passi salvato (300): è la stima migliore disponibile. Tutti i
 modelli sono addestrati con le stesse pose di training, quindi stanno nello
 stesso sistema di coordinate e le loro pose sono confrontabili.
 
-La distanza fra due pose è l'angolo, in gradi, fra le orientazioni delle due
-camere. Un'immagine è considerata "allineata" se la sua posa finale dista meno
-di ALIGNED_DEGREES dal riferimento. La soglia conta poco: le pose arrivate a
-destinazione distano frazioni di grado, le altre diversi gradi.
+Un'immagine è considerata "allineata" se l'angolo tra l'orientamento finale
+della camera e quello di riferimento è al massimo ALIGNED_DEGREES (2°).
+La posizione della camera può differire anche quando il criterio è soddisfatto.
 
 Limite da tenere presente: il riferimento è a sua volta una stima. Dove 300
 passi non bastano (alcune immagini di Cat) il riferimento stesso può essere
@@ -50,8 +49,8 @@ principali:
                            sia in questa configurazione sia in quella standard;
     standard_auroc_same_images
                            Image AUROC della configurazione standard sulle
-                           stesse immagini. La differenza fra le due colonne è
-                           la parte del calo che NON dipende dalla posa;
+                           stesse immagini. Eventuali differenze di AUROC possono
+                           ancora risentire di scarti di posizione e orientamento;
     auroc_burrs / auroc_missing / auroc_stains
                            Image AUROC fra le immagini sane e un solo tipo di
                            difetto;
@@ -82,7 +81,7 @@ from pose_estimation import checkpoint_path, estimated_c2w, load_render_settings
 from run_ablation import (ITERATIONS, ITERATIONS_VALUES, N_VIEWS, RESULTS_DIR, STANDARD_DATA, STEPS,
                           STEPS_VALUES, VIEWS_VALUES, data_path_for, find_evaluations, model_dir_for)
 
-ALIGNED_DEGREES = 2.0      # sotto questa distanza dal riferimento la posa è "allineata"
+ALIGNED_DEGREES = 2.0      # massimo scarto angolare ammesso rispetto al riferimento
 WRONG_VIEW_DEGREES = 45.0  # oltre questa distanza la vista iniziale non è una delle vicine
 REFERENCE_STEPS = max(STEPS_VALUES + [STEPS])
 DEFECT_TYPES = ("Burrs", "Missing", "Stains")

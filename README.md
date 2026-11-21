@@ -29,7 +29,8 @@ The commands below are run from the repository root. They assume that the
 Python environment is ready (see [Environment](#environment)), that the MAD-Sim
 data set is in `MAD-Sim/` and that the pretrained checkpoints are in
 `PAD_utils/model/`. Data set and checkpoints are downloaded as explained in
-[README_SplatPose.md](README_SplatPose.md).
+[README_SplatPose.md](README_SplatPose.md). After extracting the checkpoints,
+create `retrieval/model/` and copy `PAD_utils/model/efficientnet-b4-6ed6700e.pth` into it.
 
 ### Reproduction
 
