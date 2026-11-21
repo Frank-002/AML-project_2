@@ -73,6 +73,7 @@ import glob
 import json
 import os
 import re
+from pathlib import PureWindowsPath
 
 import numpy as np
 from sklearn.metrics import roc_auc_score
@@ -125,7 +126,7 @@ def load_scores(summary_path):
     path = os.path.join(os.path.dirname(summary_path), "scores.csv")
     with open(path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
-            image = row["category"] + "/" + os.path.basename(row["image_path"])
+            image = f"{row['category']}/{PureWindowsPath(row['image_path']).name}"
             scores[image] = {"score": float(row["image_score"]),
                              "anomalous": int(row["is_anomaly_dataset"]),
                              "category": row["category"]}
