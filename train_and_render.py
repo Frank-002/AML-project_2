@@ -1,6 +1,7 @@
 
 import json
 import os
+from pathlib import Path
 import random
 from project_paths import project_path
 import wandb
@@ -99,6 +100,12 @@ print("saving model to: ", result_dir)
 os.makedirs(result_dir, exist_ok=True)
 
 if config["train"] != 0:
+    pose_dir = Path(result_dir) / "pose_estimation"
+    if any(pose_dir.glob("iteration_*/*.npz")):
+        pre_parser.error(
+            f"La cartella {result_dir} contiene pose e rendering di un training precedente. "
+            "Per riaddestrare lo splat, scegli un nuovo prefisso con -p."
+        )
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     start.record()
