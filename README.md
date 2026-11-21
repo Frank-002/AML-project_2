@@ -20,7 +20,7 @@ authors: their README is kept unchanged in
 | Part | Content | Status |
 | --- | --- | --- |
 | 1 | Reproducing SplatPose on MAD-Sim and studying its main design choices | Done |
-| 2 | Editing the trained splat to create synthetic defects | Not started |
+| 2 | Editing the trained splat to create synthetic defects | In progress (Stains on Unicorn) |
 | 3 | Training a small detector on the synthetic defects | Not started |
 
 ## Results so far
@@ -94,6 +94,15 @@ images end up aligned with the reference pose and how well the splat
 reconstructs the training views (PSNR).
 
 All CSV files are in [`results/`](results).
+
+### Synthetic stain on Unicorn
+
+With the seed 0 Unicorn baseline trained, run `python -m splat_editing.generate`.
+The example recolors a small patch on one flank of the 30,000-iteration splat
+and renders it from three training views. Each view in
+`MAD-Sim_3dgs/synthetic/02Unicorn/stain_001/` contains `clean.png`, `stain.png`
+and `mask.png`. The binary mask marks pixels where the edited Gaussians
+contribute at least 50% coverage, accounting for occlusion.
 
 ## What was added to the official code
 
